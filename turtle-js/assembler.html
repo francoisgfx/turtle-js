@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Turtle</title>
+<style type="text/css">
+
+</style>
+</head>
+<body>
+    <table style="width:100%">
+        <tr>
+            <th>
+                <div id="editor" style="height: 500px; width: 500px">.global main
+main:
+    pen $1
+    fwd $50
+    rot $90
+    fwd $50
+    rot $90
+    fwd $50
+    rot $90
+    fwd $50
+    rot $90
+                </div>
+            </th>
+            <th>
+                <canvas id="as_canvas" width="500" height="500"></canvas>
+            </th> 
+        </tr>
+    </table>
+    <script src="js/jquery-3.1.1.js" type="text/javascript"></script>
+    <script src="js/turtle.js" type="text/javascript"></script>
+    <script src="js/ace.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/mode-assembly_x86.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/theme-monokai.js" type="text/javascript" charset="utf-8"></script>
+    
+    <script>
+        $( document ).ready(function() {
+            var editor = ace.edit("editor");
+            editor.setTheme("ace/theme/monokai");
+            editor.getSession().setMode("ace/mode/assembly_x86");
+            //editor.setHighlightActiveLine(true);
+            var as = new Assembler(document.getElementById("as_canvas"));
+            //as.interpret(editor.getValue())
+            
+            editor.commands.addCommand({
+                name: 'save',
+                bindKey: {win: 'Ctrl-S',  mac: 'Command-S'},
+                exec: function(editor) {
+                    as.interpret(editor.getValue())
+                }
+            });
+            
+        });
+ 
+    </script>
+</body>
+</html> 
