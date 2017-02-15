@@ -1,4 +1,4 @@
-function Assembler(canvas,test_mode){
+function Assembler(canvas,registers_view,jump_table_view,memory_view,test_mode){
    this.test_mode = (test_mode === undefined) ? false : test_mode;
    this.kValue = 0;
    this.kEqual = 1;
@@ -7,8 +7,15 @@ function Assembler(canvas,test_mode){
    this.width = 500;
    this.height = 500;
    this.canvas = canvas;
+   this.registers_view = registers_view;
+   this.jump_table_view = jump_table_view;
+   this.memory_view = memory_view;
    this.ctx = this.drawer();
    this.line_no = null;
+   
+   this.current_line = 0;
+   this.code = "";
+   this.lines = [];
    
    // ------------------------------------------
    // Jump table
@@ -394,6 +401,43 @@ Assembler.prototype.prn = function(line_no, args){
    console.log(this.getValue(line_no,args[0])[this.kValue]);
 };
 
+Assembler.prototype.reset = function() {
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.clearRect(0, 0, this.width, this.height);
+    this.ctx.restore();
+    this.current_line = 0;
+    
+};
+
+Assembler.prototype.setSource = function(src) {
+    this.code = src;
+    this.lines = this.code.split("\n");
+};
+
+Assembler.prototype.step = function(once) {
+    console.log('step');
+    
+    this.current_line++;
+    line = this.lines[this.current_line];
+    if(line === undefined) {
+        return;
+    }
+    console.log(line);
+    
+    
+    this.jump_table_view.innerText = JSON.stringify(this.jmp_table, null, 4);
+    this.registers_view.innerText = JSON.stringify(this.registers, null, 4);
+    this.memory_view.innerText = JSON.stringify(this.memory, null, 4);
+    
+    if(once === undefined) {
+        setInterval(this.step.bind(this), 500);
+    }
+};
+
+Assembler.prototype.run = function() {
+    this.step();
+};
+
 
 Assembler.prototype.dispatch = function(line_no, operation){
    var op = operation[0];
@@ -462,8 +506,8 @@ Assembler.prototype.interpret = function(txt){
       }
       code.push(line);
    }
-   
    var rip = 0;
+   this.line_no = [];
    while(rip < code.length){
       this.line_no = [rip];
       line = code[rip];
