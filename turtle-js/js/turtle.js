@@ -1,4 +1,4 @@
-function Assembler(canvas,test_mode){
+function Assembler(canvas,registers_view,jump_table_view,memory_view,test_mode){
    this.test_mode = (test_mode === undefined) ? false : test_mode;
    this.kValue = 0;
    this.kEqual = 1;
@@ -7,8 +7,15 @@ function Assembler(canvas,test_mode){
    this.width = 500;
    this.height = 500;
    this.canvas = canvas;
+   this.registers_view = registers_view;
+   this.jump_table_view = jump_table_view;
+   this.memory_view = memory_view;
    this.ctx = this.drawer();
    this.line_no = null;
+   
+   this.current_line = 0;
+   this.code = "";
+   this.lines = [];
    
    // ------------------------------------------
    // Jump table
@@ -138,6 +145,9 @@ Assembler.prototype.setPosition = function(position){
       this.ctx.moveTo(position[0], position[1]);
    }
    
+   this.gLastPos[0] = position[0];
+   this.gLastPos[1] = position[1];
+   
    this.registers["cpx"][this.kValue] = position[0];
    this.registers["cpy"][this.kValue] = position[1];
    
@@ -162,14 +172,19 @@ Assembler.prototype.fwd = function(line_no,args){
    
    var distance = this.getValue(line_no,args[0])[this.kValue];
    distance = parseFloat(distance);
+   console.log("angle " + this.gAngle, 'distance ', distance);
    var direction = [
       distance * Math.cos(this.gAngle), 
       distance * Math.sin(this.gAngle)
    ];
+   
+   console.log('direction ', direction);
+   console.log('gLastPos ', this.gLastPos);
    var position = [
       this.gLastPos[0] + direction[0],
       this.gLastPos[1] + direction[1]
    ];
+   console.log('position ', position);
    this.setPosition(position);
 };
 
@@ -180,8 +195,9 @@ Assembler.prototype.rot = function(line_no, args){
    }
    
    var angle = this.getValue(line_no,args[0])[this.kValue];
-   this.gAngle += ((parseFloat(angle)/180.0) * Math.PI);
    
+   this.gAngle += ((parseFloat(angle)/180.0) * Math.PI);
+   console.log('rot ', this.gAngle);
    this.registers["cpr"][this.kValue] = parseInt((this.gAngle / Math.PI) * 180.0);
 };
 
@@ -394,10 +410,104 @@ Assembler.prototype.prn = function(line_no, args){
    console.log(this.getValue(line_no,args[0])[this.kValue]);
 };
 
+Assembler.prototype.reset = function() {
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.clearRect(0, 0, this.width, this.height);
+    this.ctx.restore();
+    this.current_line = 0;
+    this.gLastPos = [this.width/2,this.height/2];
+    this.gAngle = 0.0;
+    this.gPenDown = false;
+    this.ctx.moveTo(this.gLastPos[0], this.gLastPos[0]);
+    
+};
+
+Assembler.prototype.setSource = function(src) {
+    this.code = src;
+    this.lines = this.code.split("\n");
+    this.reset();
+};
+
+Assembler.prototype.step = function(once) {
+    this.current_line++;
+    line = this.lines[this.current_line];
+    if(line === undefined) {
+        return;
+    }
+    console.log(line);
+    
+    line = line.replace("\t"," ").replace("\n", "").replace(",", " ");
+      
+    // strip out comments
+    var comment = line.search("#");
+    if(comment !== -1){
+     line = line.slice(0,comment);
+    }
+
+    if(line.endswith(":")){
+        var operation = line.replace(" ", "");
+        var label = operation.split(":")[0];
+        this.jmp_table[label] = this.current_line;
+    }
+    if(!line.endswith(":") && !line.startswith(".")){
+        operation = line.trim().split(" ");
+        this.dispatch(this.current_line, operation)
+    }
+    
+    var jump_table_str = '<table id="jump_table"><tr><th><strong>Jump Table</strong></th></tr>\n';
+    
+    
+    for(var key in this.jmp_table)  {
+        if (this.jmp_table[key] === this.jmp_table.__proto__[key]) {
+            continue;
+        }
+        jump_table_str += "<tr><td>" + key + "</td><td>" + this.jmp_table[key] + "</td></tr>\n";
+    }
+    jump_table_str += "</table>"
+    
+    var registers_str = '<table id="registers_table"><tr><th><strong>Registers</strong></th></tr>\n';
+    
+    for(var key in this.registers)  {
+        if (this.registers[key] === this.registers.__proto__[key]) {
+            continue;
+        }
+        registers_str += "<tr><td>" + key + "</td><td>" + this.registers[key] + "</td></tr>\n";
+    }
+    
+    registers_str += "</table>"
+    
+    var memory_str = '<table id="memory_table"><th><strong>Memory</strong></th>';
+    console.log(this.memory);
+    for(var i = 0; i < this.memory.length; i++)  {
+        if (this.memory[i] === undefined) {
+            continue;
+        }
+        memory_str += "<tr><td>" + i + "</td><td>" + this.memory[i] + "</td></tr>\n";
+    }
+    
+    memory_str += "</table>"
+
+    
+    this.jump_table_view.innerHTML = jump_table_str;//JSON.stringify(this.jmp_table, null, 4);
+    this.registers_view.innerHTML = registers_str;//JSON.stringify(this.registers, null, 4);
+    this.memory_view.innerHTML = memory_str;//JSON.stringify(this.memory, null, 4);
+    
+    if(once === undefined) {
+        setInterval(this.step.bind(this), 500);
+    }
+};
+
+Assembler.prototype.run = function() {
+    this.step();
+};
+
 
 Assembler.prototype.dispatch = function(line_no, operation){
    var op = operation[0];
-   if(op === "mov"){
+   if (op === "") {
+       // do nothing
+   }
+   else if(op === "mov"){
       this.mov(line_no,operation.slice(1));
    }else if(op === "jmp"){
       this.jmp(line_no,operation.slice(1));
@@ -462,8 +572,8 @@ Assembler.prototype.interpret = function(txt){
       }
       code.push(line);
    }
-   
    var rip = 0;
+   this.line_no = [];
    while(rip < code.length){
       this.line_no = [rip];
       line = code[rip];

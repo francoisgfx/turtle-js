@@ -3,14 +3,20 @@
 <head>
 <title>Turtle</title>
 <style type="text/css">
+#table_editor {
+    display: inline-block;
+}
 
+#as_canvas {
+    display: inline-block;
+    border: 1px solid black;
+}
 </style>
 </head>
 <body>
-    <table style="width:100%">
-        <tr>
-            <th>
-                <div id="editor" style="height: 500px; width: 500px">.global main
+<table id="table_editor">
+<th>
+<div id="editor" style="height: 500px; width: 500px">.global main
 main:
     pen $1
     fwd $50
@@ -21,13 +27,10 @@ main:
     rot $90
     fwd $50
     rot $90
-                </div>
-            </th>
-            <th>
-                <canvas id="as_canvas" width="500" height="500"></canvas>
-            </th> 
-        </tr>
-    </table>
+</div>
+</th>
+</table>
+<canvas id="as_canvas" width="300" height="300"></canvas>
     <script src="js/jquery-3.1.1.js" type="text/javascript"></script>
     <script src="js/turtle.js" type="text/javascript"></script>
     <script src="js/ace.js" type="text/javascript" charset="utf-8"></script>
@@ -35,24 +38,46 @@ main:
     <script src="js/theme-monokai.js" type="text/javascript" charset="utf-8"></script>
     
     <script>
+        var as;
         $( document ).ready(function() {
             var editor = ace.edit("editor");
             editor.setTheme("ace/theme/monokai");
             editor.getSession().setMode("ace/mode/assembly_x86");
             //editor.setHighlightActiveLine(true);
-            var as = new Assembler(document.getElementById("as_canvas"));
+            var canvas = document.getElementById("as_canvas");
+            var registers = document.getElementById("registers");
+            var jump_table = document.getElementById("jump_table");
+            var memory = document.getElementById("memory");
+            as = new Assembler(canvas, registers, jump_table, memory);
             //as.interpret(editor.getValue())
             
             editor.commands.addCommand({
                 name: 'save',
                 bindKey: {win: 'Ctrl-S',  mac: 'Command-S'},
                 exec: function(editor) {
-                    as.interpret(editor.getValue())
+                    console.log('save');
+                    as.setSource(editor.getValue());
+                }
+            });
+            editor.commands.addCommand({
+                name: 'run',
+                bindKey: {win: 'Ctrl-B',  mac: 'Command-B'},
+                exec: function(editor) {
+                    console.log('run');
+                    as.setSource(editor.getValue());
+                    as.run();
                 }
             });
             
         });
- 
+        
+        
     </script>
+    
+    <button type="button" onclick="as.step(true);">Step</button><br>
+    <div id="registers"></div>
+    <div id="jump_table"></div>
+    <div id="memory"></div>
+    
 </body>
 </html> 
